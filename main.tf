@@ -80,12 +80,12 @@ resource "google_container_cluster" "primary" {
     cluster_ipv4_cidr_block  = "10.5.0.0/21"
     services_ipv4_cidr_block = "10.6.0.0/21"
   }
-#   master_authorized_networks_config {
-#     cidr_blocks {
-#       cidr_block   = "10.0.0.7/32"
-#       display_name = "net1"
-#     }
-#   }
+  master_authorized_networks_config {
+    cidr_blocks {
+      cidr_block   = "${var.gke_bastion_ip}/32"
+      display_name = "net1"
+    }
+  }
 }
 
 # Private Node Pool
@@ -107,10 +107,39 @@ resource "google_container_node_pool" "primary_nodes" {
     }
 
     machine_type = "e2-standard-2"
-    tags         = ["gke-node", local.cluster_name]
+    tags         = ["gke-node"]
     metadata = {
       disable-legacy-endpoints = "true"
     }
     disk_size_gb = 50
   }
+}
+
+resource "google_compute_instance" "gke-bastion" {
+  zone         = var.zone
+  name         = "gke-bastion-host"
+  machine_type = "e2-medium"
+
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+    }
+  }
+  network_interface {
+    network    = google_compute_network.cluster_vpc.name
+    subnetwork = google_compute_subnetwork.cluster_subnet.name
+    network_ip = var.gke_bastion_ip
+    access_config {
+    }
+  }
+}
+
+resource "google_compute_firewall" "ssh-rule" {
+  name    = "allow-ssh"
+  network = google_compute_network.cluster_vpc.name
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+  source_ranges = ["0.0.0.0/0"]
 }

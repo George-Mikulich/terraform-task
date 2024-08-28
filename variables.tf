@@ -17,3 +17,8 @@ variable "gke_num_nodes" {
   default     = 2
   description = "number of gke nodes"
 }
+
+variable "gke_bastion_ip" {
+  default = "10.1.0.10"
+  description = "IP address of Compute Engine to connect to private GKE cluster"
+}
