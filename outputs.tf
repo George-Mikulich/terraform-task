@@ -4,5 +4,3 @@
 #   value       = module.tfstate.bucket_id
 #   description = "Bucket ID. Subject to paste to providers.tf"
 # }
-
-

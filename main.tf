@@ -73,8 +73,8 @@ resource "google_container_cluster" "primary" {
 
   private_cluster_config {
     enable_private_endpoint = true
-    enable_private_nodes   = true 
-    master_ipv4_cidr_block = "10.4.4.0/28"
+    enable_private_nodes    = true
+    master_ipv4_cidr_block  = "10.4.4.0/28"
   }
   ip_allocation_policy {
     cluster_ipv4_cidr_block  = "10.5.0.0/21"
@@ -115,6 +115,12 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
+resource "google_compute_address" "external_ip_address" {
+  name    = "gke-bastion-external-ip"
+  project = var.project_id
+  region  = var.region
+}
+
 resource "google_compute_instance" "gke-bastion" {
   zone         = var.zone
   name         = "gke-bastion-host"
@@ -122,7 +128,7 @@ resource "google_compute_instance" "gke-bastion" {
 
   boot_disk {
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      image = "debian-cloud/debian-12"
     }
   }
   network_interface {
@@ -130,8 +136,22 @@ resource "google_compute_instance" "gke-bastion" {
     subnetwork = google_compute_subnetwork.cluster_subnet.name
     network_ip = var.gke_bastion_ip
     access_config {
+      nat_ip = google_compute_address.external_ip_address.address
     }
   }
+  service_account {
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+    email  = "gke-bastion@my-beautiful-cluster2.iam.gserviceaccount.com"
+    scopes = ["cloud-platform"]
+  }
+  metadata_startup_script = <<EOT
+apt-get install kubectl -y &&
+apt-get install google-cloud-sdk-gke-gcloud-auth-plugin -y &&
+export HOME=/home/guga &&
+su guga -c "gcloud container clusters get-credentials gke-cluster --zone us-west1-c --project my-beautiful-cluster2" &&
+kubectl proxy --port 443 --address 0.0.0.0 --accept-hosts "^*\.*\.*\.*$" &
+EOT
+  tags                    = ["gke-bastion-host", google_container_cluster.primary.name]
 }
 
 resource "google_compute_firewall" "ssh-rule" {
@@ -143,3 +163,35 @@ resource "google_compute_firewall" "ssh-rule" {
   }
   source_ranges = ["0.0.0.0/0"]
 }
+
+resource "google_compute_firewall" "https-rule" {
+  name    = "allow-https"
+  network = google_compute_network.cluster_vpc.name
+  allow {
+    protocol = "tcp"
+    ports    = ["443"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+  source_tags   = ["gke-bastion-host"]
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = "~/.kube/config"
+    #host   = "http://${google_compute_instance.gke-bastion.network_interface[0].access_config[0].nat_ip}:443"
+  }
+}
+
+# resource "helm_release" "nginx_ingress" {
+#   name       = "nginx-ingress-controller"
+
+#   repository = "https://charts.bitnami.com/bitnami"
+#   chart      = "nginx-ingress-controller"
+
+#   dependency_update = true
+
+#   set {
+#     name  = "service.type"
+#     value = "ClusterIP"
+#   }
+# }
