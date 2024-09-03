@@ -182,16 +182,16 @@ provider "helm" {
   }
 }
 
-# resource "helm_release" "nginx_ingress" {
-#   name       = "nginx-ingress-controller"
+resource "helm_release" "nginx_ingress" {
+  name       = "nginx-ingress-controller"
 
-#   repository = "https://charts.bitnami.com/bitnami"
-#   chart      = "nginx-ingress-controller"
+  repository = "https://charts.bitnami.com/bitnami"
+  chart      = "nginx-ingress-controller"
 
-#   dependency_update = true
+  dependency_update = true
 
-#   set {
-#     name  = "service.type"
-#     value = "ClusterIP"
-#   }
-# }
+  set {
+    name  = "service.type"
+    value = "ClusterIP"
+  }
+}
