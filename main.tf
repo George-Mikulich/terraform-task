@@ -13,14 +13,14 @@ module "gke_network" {
   source            = "./vpc-subnets"
   region            = var.region
   name_prefix       = "cluster"
-  subnet_cidr_range = "10.1.0.0/24"
+  subnet_cidr_range = var.cidr_gke_subnet
 }
 
 module "mysql_network" {
   source            = "./vpc-subnets"
   region            = var.region
   name_prefix       = "mysql"
-  subnet_cidr_range = "10.2.0.0/24"
+  subnet_cidr_range = var.cidr_mysql_subnet
 }
 
 # --------------------------------------------------------------
@@ -68,78 +68,22 @@ module "private-gke-cluster" {
 # MySQL DB with bastion ----------------------------------------
 # --------------------------------------------------------------
 
-resource "google_compute_global_address" "private_ip_address" {
-  name          = "private-ip-address"
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  prefix_length = 16
-  network       = module.mysql_network.vpc_selflink
+module "mysql-with-bastion" {
+  source                     = "./mysql-bastion"
+  vpc_selflink               = module.mysql_network.vpc_selflink
+  region                     = var.region
+  db_version                 = "MYSQL_8_0"
+  firewall_allow_cidr_ranges = [var.cidr_gke_subnet, var.cidr_pods]
 }
 
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = module.mysql_network.vpc_selflink
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-}
+# --------------------------------------------------------------
+# VPC peering --------------------------------------------------
+# --------------------------------------------------------------
 
-resource "google_sql_database" "database" {
-  name     = "mysql-db"
-  instance = google_sql_database_instance.instance.name
-}
-
-resource "google_sql_database_instance" "instance" {
-  name             = "mysql-db-instance"
-  region           = var.region
-  database_version = "MYSQL_8_0"
-
-  depends_on = [google_service_networking_connection.private_vpc_connection]
-
-  settings {
-    tier = "db-f1-micro"
-    ip_configuration {
-      ipv4_enabled                                  = false
-      private_network                               = module.mysql_network.vpc_selflink
-      enable_private_path_for_google_cloud_services = true
-    }
-  }
-
-  deletion_protection = "false"
-}
-
-resource "google_compute_network_peering" "peering1" {
-  name         = "peering1"
-  export_custom_routes = true
-  import_custom_routes = true
-  network      = module.gke_network.vpc_selflink
-  peer_network = module.mysql_network.vpc_selflink
-}
-
-resource "google_compute_network_peering" "peering2" {
-  name         = "peering2"
-  export_custom_routes = true
-  import_custom_routes = true
-  network      = module.mysql_network.vpc_selflink
-  peer_network = module.gke_network.vpc_selflink
-}
-
-resource "google_compute_firewall" "mysql-from-pods-rule" {
-  name    = "allow-mysql-from-pods"
-  network = module.mysql_network.vpc_selflink
-  allow {
-    protocol = "tcp"
-    ports    = ["3306"]
-  }
-  source_ranges = ["${var.cidr_pods}"]
-}
-
-resource "google_compute_firewall" "mysql-from-ce" {
-  name    = "allow-mysql-from-ce"
-  network = module.mysql_network.vpc_selflink
-  allow {
-    protocol = "tcp"
-    ports    = ["3306"]
-  }
-  source_ranges = ["10.1.0.0/24"]
+module "gke-mysql-peering" {
+  source = "./peering"
+  vpc1   = module.gke_network.vpc_selflink
+  vpc2   = module.mysql_network.vpc_selflink
 }
 
 # --------------------------------------------------------------

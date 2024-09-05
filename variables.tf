@@ -19,6 +19,16 @@ variable "gke_num_nodes" {
 }
 
 variable "cidr_pods" {
-  default = "10.5.0.0/21"
+  default     = "10.5.0.0/21"
   description = "gke pods CIDR range"
+}
+
+variable "cidr_gke_subnet" {
+  default     = "10.1.0.0/24"
+  description = "CIDR range of gke_vpc subnet"
+}
+
+variable "cidr_mysql_subnet" {
+  default     = "10.2.0.0/24"
+  description = "CIDR range of mysql_vpc subnet"
 }
