@@ -70,6 +70,6 @@ EOT
 }
 
 variable "source_IP" {
-  default = "134.17.27.135/32"
+  default     = "134.17.27.135/32"
   description = "my machine IP"
 }

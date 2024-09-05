@@ -32,3 +32,15 @@ variable "cidr_mysql_subnet" {
   default     = "10.2.0.0/24"
   description = "CIDR range of mysql_vpc subnet"
 }
+
+variable "db_user" {
+  type        = string
+  sensitive   = true
+  description = ""
+}
+
+variable "db_password" {
+  type        = string
+  sensitive   = true
+  description = ""
+}

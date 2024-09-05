@@ -71,19 +71,28 @@ module "private-gke-cluster" {
 module "mysql-with-bastion" {
   source                     = "./mysql-bastion"
   vpc_selflink               = module.mysql_network.vpc_selflink
+  vpc_name                   = module.mysql_network.vpc_name
   region                     = var.region
   db_version                 = "MYSQL_8_0"
   firewall_allow_cidr_ranges = [var.cidr_gke_subnet, var.cidr_pods]
+  bastion_subnet             = module.mysql_network.subnet_name
+  bastion_internal_ip        = "10.2.0.10"
+  db_user                    = var.db_user
+  db_password                = var.db_password
 }
 
 # --------------------------------------------------------------
-# VPC peering --------------------------------------------------
+# VPN connection between 2 VPCs --------------------------------
 # --------------------------------------------------------------
 
-module "gke-mysql-peering" {
-  source = "./peering"
-  vpc1   = module.gke_network.vpc_selflink
-  vpc2   = module.mysql_network.vpc_selflink
+module "gke-mysql-vpn" {
+  source              = "./vpn"
+  gke_vpc_id          = module.gke_network.vpc_id
+  mysql_vpc_id        = module.mysql_network.vpc_id
+  gke_vpc_name        = module.gke_network.vpc_name
+  mysql_vpc_name      = module.mysql_network.vpc_name
+  region              = var.region
+  advertised_ip_range = module.mysql-with-bastion.instances_ip_range
 }
 
 # --------------------------------------------------------------
