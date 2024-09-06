@@ -19,7 +19,7 @@ resource "google_compute_router" "router1" {
     asn               = 64514
     advertised_groups = ["ALL_SUBNETS"]
     advertised_ip_ranges {
-      range = "10.221.0.0/24"
+      range = var.advertised_ip_range
     }
   }
 }
@@ -29,7 +29,12 @@ resource "google_compute_router" "router2" {
   region  = var.region
   network = var.mysql_vpc_name
   bgp {
+    advertise_mode    = "CUSTOM"
     asn = 64515
+    advertised_groups = ["ALL_SUBNETS"]
+    advertised_ip_ranges {
+      range = var.advertised_ip_range
+    }
   }
 }
 
