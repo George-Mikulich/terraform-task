@@ -81,8 +81,10 @@ resource "google_compute_instance" "gke-bastion" {
 apt-get install kubectl -y &&
 apt-get install google-cloud-sdk-gke-gcloud-auth-plugin -y &&
 export HOME=/home/guga &&
+mkdir /home/guga/cert &&
+echo ${base64decode(google_container_cluster.primary.master_auth.0.cluster_ca_certificate)} > "/home/guga/cert/ca.crt" &&
 su guga -c "gcloud container clusters get-credentials ${var.cluster_name} --zone ${var.zone} --project ${var.project}" &&
-kubectl proxy --port 443 --address 0.0.0.0 --accept-hosts "^*\.*\.*\.*$" &
+kubectl proxy --port 443 --address 0.0.0.0 --accept-hosts "^*\.*\.*\.*$" --certificate-authority /home/guga/cert/ca.crt &
 EOT
   tags                    = ["gke-bastion-host", google_container_cluster.primary.name]
 }

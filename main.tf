@@ -99,12 +99,25 @@ module "gke-mysql-vpn" {
 # Helm Releases ------------------------------------------------
 # --------------------------------------------------------------
 
-provider "helm" {
-  kubernetes {
-    config_path = "~/.kube/config"
-    #proxy_url   = "http://${google_compute_instance.gke-bastion.network_interface[0].access_config[0].nat_ip}:443"
-  }
+# provider "helm" { #old provider
+#   kubernetes {
+#     config_path = "~/.kube/config"
+#     #proxy_url   = "http://${google_compute_instance.gke-bastion.network_interface[0].access_config[0].nat_ip}:443"
+#   }
+# }
+
+data "google_client_config" "default" {
 }
+
+# provider "helm" {
+#   kubernetes {
+#     host                   = module.private-gke-cluster.bastion_endpoint
+#     token                  = data.google_client_config.default.access_token
+#     client_certificate     = base64decode(module.private-gke-cluster.cert)
+#     client_key             = base64decode(module.private-gke-cluster.key)
+#     cluster_ca_certificate = base64decode(module.private-gke-cluster.ca_cert)
+#   }
+# }
 
 # resource "helm_release" "argocd" {
 #   name = "argocd"
