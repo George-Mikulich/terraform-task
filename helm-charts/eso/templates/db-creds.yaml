@@ -1,0 +1,20 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: db-creds
+  namespace: wordpress
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: gcp
+    kind: ClusterSecretStore
+  target:
+    name: db-creds
+    creationPolicy: Owner
+  data:
+  - secretKey: MYSQL_USER
+    remoteRef:
+      key: db_user
+  - secretKey: MYSQL_PASSWORD
+    remoteRef:
+      key: db_password
