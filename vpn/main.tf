@@ -30,7 +30,7 @@ resource "google_compute_router" "router2" {
   network = var.mysql_vpc_name
   bgp {
     advertise_mode    = "CUSTOM"
-    asn = 64515
+    asn               = 64515
     advertised_groups = ["ALL_SUBNETS"]
     advertised_ip_ranges {
       range = var.advertised_ip_range

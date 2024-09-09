@@ -73,3 +73,8 @@ variable "source_IP" {
   default     = "134.17.27.135/32"
   description = "my machine IP"
 }
+
+variable "home_IP" {
+  default     = "178.125.239.2/32"
+  description = "home IP"
+}

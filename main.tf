@@ -68,38 +68,38 @@ module "private-gke-cluster" {
 # MySQL DB with bastion ----------------------------------------
 # --------------------------------------------------------------
 
-module "mysql-with-bastion" {
-  source                     = "./mysql-bastion"
-  vpc_selflink               = module.mysql_network.vpc_selflink
-  vpc_name                   = module.mysql_network.vpc_name
-  region                     = var.region
-  db_version                 = "MYSQL_8_0"
-  firewall_allow_cidr_ranges = [var.cidr_gke_subnet, var.cidr_pods]
-  bastion_subnet             = module.mysql_network.subnet_name
-  bastion_internal_ip        = "10.2.0.10"
-  db_user                    = var.db_user
-  db_password                = var.db_password
-}
+# module "mysql-with-bastion" {
+#   source                     = "./mysql-bastion"
+#   vpc_selflink               = module.mysql_network.vpc_selflink
+#   vpc_name                   = module.mysql_network.vpc_name
+#   region                     = var.region
+#   db_version                 = "MYSQL_8_0"
+#   firewall_allow_cidr_ranges = [var.cidr_gke_subnet, var.cidr_pods]
+#   bastion_subnet             = module.mysql_network.subnet_name
+#   bastion_internal_ip        = "10.2.0.10"
+#   db_user                    = var.db_user
+#   db_password                = var.db_password
+# }
 
 # --------------------------------------------------------------
 # VPN connection between 2 VPCs --------------------------------
 # --------------------------------------------------------------
 
-module "gke-mysql-vpn" {
-  source              = "./vpn"
-  gke_vpc_id          = module.gke_network.vpc_id
-  mysql_vpc_id        = module.mysql_network.vpc_id
-  gke_vpc_name        = module.gke_network.vpc_name
-  mysql_vpc_name      = module.mysql_network.vpc_name
-  region              = var.region
-  advertised_ip_range = module.mysql-with-bastion.instances_ip_range
-}
+# module "gke-mysql-vpn" {
+#   source              = "./vpn"
+#   gke_vpc_id          = module.gke_network.vpc_id
+#   mysql_vpc_id        = module.mysql_network.vpc_id
+#   gke_vpc_name        = module.gke_network.vpc_name
+#   mysql_vpc_name      = module.mysql_network.vpc_name
+#   region              = var.region
+#   advertised_ip_range = module.mysql-with-bastion.instances_ip_range
+# }
 
 # --------------------------------------------------------------
 # Helm Releases ------------------------------------------------
 # --------------------------------------------------------------
 
-provider "helm" { #old provider
+provider "helm" {
   kubernetes {
     config_path = "~/.kube/config"
     #proxy_url   = "http://${google_compute_instance.gke-bastion.network_interface[0].access_config[0].nat_ip}:443"
@@ -107,11 +107,68 @@ provider "helm" { #old provider
 }
 
 resource "helm_release" "argocd" {
-  name = "argocd"
-
+  name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
   namespace        = "argocd"
   version          = "7.1.1"
   create_namespace = true
+  wait             = true
 }
+
+resource "helm_release" "nginx_ingress_controller" {
+  name             = "ingress-nginx"
+  repository       = "https://kubernetes.github.io/ingress-nginx"
+  chart            = "ingress-nginx"
+  namespace        = "ingress-nginx"
+  create_namespace = true
+  wait             = true
+}
+
+resource "helm_release" "external_secrets_preconfig" { #weakpoint
+  name             = "eso-preconfig"
+  chart            = "./secrets"
+  namespace        = "external-secrets"
+  create_namespace = true
+  wait             = true
+}
+
+resource "helm_release" "external_secrets" {
+  name             = "eso"
+  repository       = "https://charts.external-secrets.io"
+  chart            = "external-secrets"
+  namespace        = "external-secrets"
+  wait             = true
+}
+
+resource "helm_release" "dns_secret_key" {
+  name             = "dns-secret-key"
+  repository       = "https://github.com/George-Mikulich/terraform-task"
+  chart            = "helm-charts/eso"
+  namespace        = "external-secrets"
+  wait             = true
+}
+
+# resource "helm_release" "cert-manager" {
+#   name             = "cert-manager"
+#   repository       = "https://charts.jetstack.io"
+#   chart            = "cert-manager"
+#   namespace        = "cert-manager"
+#   version          = "v1.15.1"
+#   create_namespace = true
+#   wait             = true
+#   values = [
+#     file("./helm-values/cert-manager.yaml")
+#   ]
+# }
+
+# resource "helm_release" "argocd_apps" {
+#   name = "argocd-apps"
+#   repository       = "https://argoproj.github.io/argo-helm"
+#   chart            = "argocd-apps"
+#   namespace        = "argocd"
+#   version          = "2.0.0"
+#   values = [
+#     file("./helm-values/argocd-apps.yaml")
+#   ]
+# }
