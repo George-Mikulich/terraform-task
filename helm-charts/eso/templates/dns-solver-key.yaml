@@ -2,6 +2,7 @@ apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
   name: dns-solver-sa-key
+  namespace: cert-manager
 spec:
   refreshInterval: 1h
   secretStoreRef:
@@ -9,7 +10,6 @@ spec:
     kind: ClusterSecretStore
   target:
     name: dns-solver-sa
-    namespace: cert-manager
     creationPolicy: Owner
   data:
   - secretKey: key.json
