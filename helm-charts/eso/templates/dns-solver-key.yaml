@@ -9,6 +9,7 @@ spec:
     kind: ClusterSecretStore
   target:
     name: dns-solver-sa
+    namespace: cert-manager
     creationPolicy: Owner
   data:
   - secretKey: key.json

@@ -134,33 +134,35 @@ resource "helm_release" "external_secrets_preconfig" { #weakpoint
 }
 
 resource "helm_release" "external_secrets" {
-  name             = "eso"
-  repository       = "https://charts.external-secrets.io"
-  chart            = "external-secrets"
-  namespace        = "external-secrets"
+  depends_on = [helm_release.external_secrets_preconfig]
+  name       = "eso"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  namespace  = "external-secrets"
+  wait       = true
+}
+
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  namespace        = "cert-manager"
+  version          = "v1.15.1"
+  create_namespace = true
   wait             = true
+  values = [
+    file("./helm-values/cert-manager.yaml")
+  ]
 }
 
 resource "helm_release" "dns_secret_key" {
-  name             = "dns-secret-key"
-  repository       = "https://github.com/George-Mikulich/terraform-task"
-  chart            = "helm-charts/eso"
-  namespace        = "external-secrets"
-  wait             = true
+  depends_on = [helm_release.external_secrets, helm_release.cert_manager]
+  name       = "dns-secret-key"
+  repository = "https://github.com/George-Mikulich/terraform-task"
+  chart      = "helm-charts/eso"
+  namespace  = "external-secrets"
+  wait       = true
 }
-
-# resource "helm_release" "cert-manager" {
-#   name             = "cert-manager"
-#   repository       = "https://charts.jetstack.io"
-#   chart            = "cert-manager"
-#   namespace        = "cert-manager"
-#   version          = "v1.15.1"
-#   create_namespace = true
-#   wait             = true
-#   values = [
-#     file("./helm-values/cert-manager.yaml")
-#   ]
-# }
 
 # resource "helm_release" "argocd_apps" {
 #   name = "argocd-apps"
