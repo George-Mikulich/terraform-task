@@ -104,6 +104,6 @@ resource "google_compute_firewall" "https-rule" {
     protocol = "tcp"
     ports    = ["443"]
   }
-  source_ranges = ["${var.source_IP}", "${var.home_IP}"]
+  source_ranges = ["${var.source_IP}", "${var.home_IP}", "${var.bsu_IP}"]
   source_tags   = ["gke-bastion-host"]
 }

@@ -1,4 +1,0 @@
-namespace: ingress-nginx
-secret-name: app-george-tls
-dnsNames:
-  - my.app-george.com

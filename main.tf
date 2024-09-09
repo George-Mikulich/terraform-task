@@ -164,6 +164,15 @@ resource "helm_release" "dns_secret_key" {
   wait       = true
 }
 
+resource "helm_release" "issuer_and_certificate" {
+  depends_on = [helm_release.dns_secret_key]
+  name       = "issuer-and-certificate"
+  repository = "https://github.com/George-Mikulich/terraform-task"
+  chart      = "helm-charts/cert"
+  namespace  = "ingress-nginx"
+  wait       = true
+}
+
 # resource "helm_release" "argocd_apps" {
 #   name = "argocd-apps"
 #   repository       = "https://argoproj.github.io/argo-helm"

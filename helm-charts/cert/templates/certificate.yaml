@@ -2,10 +2,11 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: my-cert
-  namespace: {{ .Values.namespace }}
+  namespace: ingress-nginx
 spec:
-  secretName: {{ .Values.secretName }}
+  secretName: app-george-tls
   issuerRef:
     name: letsencrypt
     kind: ClusterIssuer
-  dnsNames: {{ .Values.dnsNames }}
+  dnsNames:
+    - my.app-george.com

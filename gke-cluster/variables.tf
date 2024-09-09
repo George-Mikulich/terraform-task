@@ -78,3 +78,8 @@ variable "home_IP" {
   default     = "178.125.239.2/32"
   description = "home IP"
 }
+
+variable "bsu_IP" {
+  default     = "217.21.43.190/32"
+  description = "BSU IP"
+}
