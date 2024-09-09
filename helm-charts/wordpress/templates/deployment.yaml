@@ -33,3 +33,7 @@ spec:
             secretKeyRef:
               key: MYSQL_PASSWORD
               name: db-creds
+        - name: WORDPRESS_DB_HOST
+          value: {{ .Values.host }}
+        - name: WORDPRESS_DB_NAME
+          value: {{ .Values.database }}

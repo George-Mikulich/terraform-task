@@ -68,32 +68,32 @@ module "private-gke-cluster" {
 # MySQL DB with bastion ----------------------------------------
 # --------------------------------------------------------------
 
-# module "mysql-with-bastion" {
-#   source                     = "./mysql-bastion"
-#   vpc_selflink               = module.mysql_network.vpc_selflink
-#   vpc_name                   = module.mysql_network.vpc_name
-#   region                     = var.region
-#   db_version                 = "MYSQL_8_0"
-#   firewall_allow_cidr_ranges = [var.cidr_gke_subnet, var.cidr_pods]
-#   bastion_subnet             = module.mysql_network.subnet_name
-#   bastion_internal_ip        = "10.2.0.10"
-#   db_user                    = var.db_user
-#   db_password                = var.db_password
-# }
+module "mysql-with-bastion" {
+  source                     = "./mysql-bastion"
+  vpc_selflink               = module.mysql_network.vpc_selflink
+  vpc_name                   = module.mysql_network.vpc_name
+  region                     = var.region
+  db_version                 = "MYSQL_8_0"
+  firewall_allow_cidr_ranges = [var.cidr_gke_subnet, var.cidr_pods]
+  bastion_subnet             = module.mysql_network.subnet_name
+  bastion_internal_ip        = "10.2.0.10"
+  db_user                    = var.db_user
+  db_password                = var.db_password
+}
 
 # --------------------------------------------------------------
 # VPN connection between 2 VPCs --------------------------------
 # --------------------------------------------------------------
 
-# module "gke-mysql-vpn" {
-#   source              = "./vpn"
-#   gke_vpc_id          = module.gke_network.vpc_id
-#   mysql_vpc_id        = module.mysql_network.vpc_id
-#   gke_vpc_name        = module.gke_network.vpc_name
-#   mysql_vpc_name      = module.mysql_network.vpc_name
-#   region              = var.region
-#   advertised_ip_range = module.mysql-with-bastion.instances_ip_range
-# }
+module "gke-mysql-vpn" {
+  source              = "./vpn"
+  gke_vpc_id          = module.gke_network.vpc_id
+  mysql_vpc_id        = module.mysql_network.vpc_id
+  gke_vpc_name        = module.gke_network.vpc_name
+  mysql_vpc_name      = module.mysql_network.vpc_name
+  region              = var.region
+  advertised_ip_range = module.mysql-with-bastion.instances_ip_range
+}
 
 # --------------------------------------------------------------
 # Helm Releases ------------------------------------------------
@@ -151,17 +151,18 @@ resource "helm_release" "cert_manager" {
   create_namespace = true
   wait             = true
   values = [
-    file("./helm-values/cert-manager.yaml")
+    file("./custom-helm-values/cert-manager.yaml")
   ]
 }
 
 resource "helm_release" "dns_secret_key" {
-  depends_on = [helm_release.external_secrets, helm_release.cert_manager]
-  name       = "dns-secret-key"
-  repository = "https://github.com/George-Mikulich/terraform-task"
-  chart      = "helm-charts/eso"
-  namespace  = "external-secrets"
-  wait       = true
+  depends_on       = [helm_release.external_secrets, helm_release.cert_manager]
+  name             = "external-secrets"
+  repository       = "https://github.com/George-Mikulich/terraform-task"
+  chart            = "helm-charts/eso"
+  namespace        = "wordpress"
+  create_namespace = true
+  wait             = true
 }
 
 resource "helm_release" "issuer_and_certificate" {
@@ -173,13 +174,18 @@ resource "helm_release" "issuer_and_certificate" {
   wait       = true
 }
 
-# resource "helm_release" "argocd_apps" {
-#   name = "argocd-apps"
-#   repository       = "https://argoproj.github.io/argo-helm"
-#   chart            = "argocd-apps"
-#   namespace        = "argocd"
-#   version          = "2.0.0"
-#   values = [
-#     file("./helm-values/argocd-apps.yaml")
-#   ]
+# resource "helm_release" "wordpress" {
+#   depends_on = [helm_release.dns_secret_key]
+#   name       = "wordpress-app"
+#   repository = "https://github.com/George-Mikulich/terraform-task"
+#   chart      = "helm-charts/wordpress"
+#   namespace  = "wordpress"
+#   set {
+#     name   = "host"
+#     value = module.mysql-with-bastion.instance_ip
+#   }
+#   set {
+#     name   = "database"
+#     value = module.mysql-with-bastion.db_name
+#   }
 # }

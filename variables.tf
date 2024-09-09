@@ -33,14 +33,14 @@ variable "cidr_mysql_subnet" {
   description = "CIDR range of mysql_vpc subnet"
 }
 
-# variable "db_user" {
-#   type        = string
-#   sensitive   = true
-#   description = ""
-# }
+variable "db_user" {
+  type        = string
+  sensitive   = true
+  description = ""
+}
 
-# variable "db_password" {
-#   type        = string
-#   sensitive   = true
-#   description = ""
-# }
+variable "db_password" {
+  type        = string
+  sensitive   = true
+  description = ""
+}
