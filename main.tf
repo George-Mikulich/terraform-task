@@ -189,3 +189,20 @@ resource "helm_release" "issuer_and_certificate" {
 #     value = module.mysql-with-bastion.db_name
 #   }
 # }
+
+resource "helm_release" "prometheus_grafana" {
+  name             = "monitoring1"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  namespace        = "monitoring"
+  create_namespace = true
+  wait             = true
+}
+
+resource "helm_release" "uptime" {
+  name             = "monitoring2"
+  repository       = "https://helm.irsigler.cloud"
+  chart            = "uptime-kuma"
+  namespace        = "monitoring"
+  wait             = true
+}
