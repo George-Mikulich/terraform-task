@@ -3,11 +3,11 @@ resource "google_compute_global_address" "private_ip_address" {
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
   prefix_length = 16
-  network       = var.vpc_selflink
+  network       = var.network.vpc_selflink
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = var.vpc_selflink
+  network                 = var.network.vpc_selflink
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
@@ -19,8 +19,8 @@ resource "google_sql_database" "database" {
 
 resource "google_sql_database_instance" "instance" {
   name             = "mysql-db-instance"
-  region           = var.region
-  database_version = var.db_version
+  region           = var.gcp_project_settings.region
+  database_version = var.db_config.db_version
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
 
@@ -28,7 +28,7 @@ resource "google_sql_database_instance" "instance" {
     tier = "db-f1-micro"
     ip_configuration {
       ipv4_enabled                                  = false
-      private_network                               = var.vpc_selflink
+      private_network                               = var.network.vpc_selflink
       enable_private_path_for_google_cloud_services = true
     }
   }
@@ -36,14 +36,14 @@ resource "google_sql_database_instance" "instance" {
 }
 
 resource "google_sql_user" "users" {
-  name     = var.db_user
+  name     = var.db_creds.user
   instance = google_sql_database_instance.instance.name
-  host     = var.bastion_internal_ip
-  password = var.db_password
+  host     = var.db_config.bastion_internal_ip
+  password = var.db_creds.password
 }
 
 resource "google_compute_instance" "mysql_bastion" {
-  zone         = var.zone
+  zone         = var.gcp_project_settings.zone
   name         = "mysql-bastion"
   machine_type = "e2-standard-2"
 
@@ -53,9 +53,9 @@ resource "google_compute_instance" "mysql_bastion" {
     }
   }
   network_interface {
-    network    = var.vpc_name
-    subnetwork = var.bastion_subnet
-    network_ip = var.bastion_internal_ip
+    network    = var.network.vpc_name
+    subnetwork = var.network.subnet_name
+    network_ip = var.db_config.bastion_internal_ip
     access_config {
     }
   }
@@ -70,22 +70,14 @@ EOT
   tags                    = ["mysql-bastion-host"]
 }
 
-resource "google_compute_firewall" "mysql-from-x-rule" {
-  name    = "allow-mysql-from-specified-ranges"
-  network = var.vpc_selflink
+resource "google_compute_firewall" "firewall_rules" {
+  for_each = var.tcp_firewall_config
+  name     = "allow-${each.key}"
+  network  = var.network.vpc_name
   allow {
     protocol = "tcp"
-    ports    = ["3306"]
+    ports    = ["${each.value.port}"]
   }
-  source_ranges = var.firewall_allow_cidr_ranges
-}
-
-resource "google_compute_firewall" "ssh-rule" {
-  name    = "allow-ssh-mysql-bastion"
-  network = var.vpc_name
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-  source_ranges = ["0.0.0.0/0"]
+  source_ranges = [for cidr_range in each.value.source_ranges : cidr_range] #converting map to list
+  source_tags   = each.value.source_tags
 }

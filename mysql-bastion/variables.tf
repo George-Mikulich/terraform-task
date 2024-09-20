@@ -1,51 +1,70 @@
-variable "vpc_selflink" {
-  type        = string
-  description = "selflink to mysql vpc"
+variable "gcp_project_settings" {
+  type = object({
+    zone       = string
+    region     = string
+    project_id = string
+  })
+  default = {
+    zone       = "us-west1-c"
+    region     = "us-west1"
+    project_id = "my-beautiful-cluster2"
+  }
 }
 
-variable "vpc_name" {
-  type        = string
-  description = "name of mysql vpc"
+variable "network" {
+  type = object({
+    vpc_name     = string
+    vpc_selflink = string
+    subnet_name  = string
+  })
+  default = {
+    vpc_name     = "mysql-network-vpc"
+    vpc_selflink = "хрен его знает"
+    subnet_name  = "mysql-network-subnet"
+  }
 }
 
-variable "region" {
-  default     = "us-west1"
-  description = "gcp region"
+variable "tcp_firewall_config" {
+  type = map(object({
+    port          = number
+    source_tags   = list(string)
+    source_ranges = map(string)
+  }))
+  description = "Config variables for TCP protocol firewalls"
+  default = {
+    ssh = {
+      port        = 22
+      source_tags = null
+      source_ranges = {
+        all_IPs = "0.0.0.0/0"
+      }
+    }
+    mysql = {
+      port        = 3306
+      source_tags = null
+      source_ranges = {
+        gke_pods   = "10.5.0.0/21"
+        gke_subnet = "10.1.0.0/24"
+      }
+    }
+  }
 }
 
-variable "zone" {
-  default     = "us-west1-c"
-  description = "gcp zone"
+variable "db_config" {
+  type = object({
+    db_version          = string
+    bastion_internal_ip = string
+  })
+  default = {
+    db_version          = "MYSQL_8_0"
+    bastion_internal_ip = "10.2.0.10"
+  }
 }
 
-variable "db_version" {
-  default     = "MYSQL_8_0"
-  description = "(optional) describe your variable"
-}
-
-variable "firewall_allow_cidr_ranges" {
-  default     = [""]
-  description = "CIDR ranges allowed to connect to mysql VPC"
-}
-
-variable "bastion_subnet" {
-  type        = string
-  description = "self-descriptive"
-}
-
-variable "bastion_internal_ip" {
-  type        = string
-  description = "self-descriptive"
-}
-
-variable "db_user" {
-  type        = string
-  sensitive   = true
-  description = ""
-}
-
-variable "db_password" {
-  type        = string
-  sensitive   = true
-  description = ""
+variable "db_creds" {
+  type = object({
+    user     = string
+    password = string
+  })
+  sensitive = true
 }

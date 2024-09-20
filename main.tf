@@ -9,18 +9,12 @@
 # VPC networks and subnets -------------------------------------
 # --------------------------------------------------------------
 
-module "gke_network" {
+module "network" {
   source            = "./vpc-subnets"
-  region            = var.region
-  name_prefix       = "cluster"
-  subnet_cidr_range = var.cidr_gke_subnet
-}
-
-module "mysql_network" {
-  source            = "./vpc-subnets"
-  region            = var.region
-  name_prefix       = "mysql"
-  subnet_cidr_range = var.cidr_mysql_subnet
+  region            = var.gcp_project_settings.region
+  for_each          = var.vpc_networks
+  name_prefix       = each.value.name_prefix
+  subnet_cidr_range = each.value.cidr_range
 }
 
 # --------------------------------------------------------------
@@ -28,17 +22,17 @@ module "mysql_network" {
 # --------------------------------------------------------------
 
 resource "google_compute_router" "router" {
-  project = var.project_id
+  project = var.gcp_project_settings.project_id
   name    = "nat-router-for-gke"
-  network = module.gke_network.vpc_name
-  region  = var.region
+  network = module.network["gke"].vpc_name
+  region  = var.gcp_project_settings.region
 }
 
 module "cloud-nat" {
   source                             = "terraform-google-modules/cloud-nat/google"
   version                            = "~> 5.0"
-  project_id                         = var.project_id
-  region                             = var.region
+  project_id                         = var.gcp_project_settings.project_id
+  region                             = var.gcp_project_settings.region
   router                             = google_compute_router.router.name
   name                               = "nat-config-for-gke"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
@@ -49,19 +43,17 @@ module "cloud-nat" {
 # --------------------------------------------------------------
 
 module "private-gke-cluster" {
-  source              = "./gke-cluster"
-  cluster_name        = "terraform-task-cluster"
-  zone                = var.zone
-  project             = var.project_id
-  vpc                 = module.gke_network.vpc_name
-  subnet              = module.gke_network.subnet_name
-  cidr_master         = "10.4.4.0/28"
-  cidr_pods           = var.cidr_pods
-  cidr_services       = "10.6.0.0/21"
-  bastion_internal_ip = "10.1.0.10"
-  num_of_nodes        = var.gke_num_nodes
-  machine_type        = "e2-standard-2"
-  disk_size_gb        = 50
+  source               = "./gke-cluster"
+  gcp_project_settings = var.gcp_project_settings
+  network = {
+    vpc_name    = module.network["gke"].vpc_name
+    subnet_name = module.network["gke"].subnet_name
+  }
+  cluster_np_bastion_config = var.gke_config
+  tcp_firewall_config = {
+    ssh   = var.tcp_firewall_config["ssh"]
+    https = var.tcp_firewall_config["https"]
+  }
 }
 
 # --------------------------------------------------------------
@@ -69,16 +61,19 @@ module "private-gke-cluster" {
 # --------------------------------------------------------------
 
 module "mysql-with-bastion" {
-  source                     = "./mysql-bastion"
-  vpc_selflink               = module.mysql_network.vpc_selflink
-  vpc_name                   = module.mysql_network.vpc_name
-  region                     = var.region
-  db_version                 = "MYSQL_8_0"
-  firewall_allow_cidr_ranges = [var.cidr_gke_subnet, var.cidr_pods]
-  bastion_subnet             = module.mysql_network.subnet_name
-  bastion_internal_ip        = "10.2.0.10"
-  db_user                    = var.db_user
-  db_password                = var.db_password
+  source               = "./mysql-bastion"
+  gcp_project_settings = var.gcp_project_settings
+  network = {
+    vpc_name     = module.network["mysql"].vpc_name
+    vpc_selflink = module.network["mysql"].vpc_selflink
+    subnet_name  = module.network["mysql"].subnet_name
+  }
+  tcp_firewall_config = {
+    ssh   = var.tcp_firewall_config["ssh"]
+    mysql = var.tcp_firewall_config["mysql"]
+  }
+  db_config = var.db_config
+  db_creds  = var.db_creds
 }
 
 # --------------------------------------------------------------
@@ -86,13 +81,21 @@ module "mysql-with-bastion" {
 # --------------------------------------------------------------
 
 module "gke-mysql-vpn" {
-  source              = "./vpn"
-  gke_vpc_id          = module.gke_network.vpc_id
-  mysql_vpc_id        = module.mysql_network.vpc_id
-  gke_vpc_name        = module.gke_network.vpc_name
-  mysql_vpc_name      = module.mysql_network.vpc_name
-  region              = var.region
-  advertised_ip_range = module.mysql-with-bastion.instances_ip_range
+  source = "./vpn"
+  network = {
+    gke = {
+      vpc_name = module.network["gke"].vpc_name
+      vpc_id   = module.network["gke"].vpc_id
+      asn      = var.vpc_networks["gke"].asn
+    }
+    mysql = {
+      vpc_name = module.network["mysql"].vpc_name
+      vpc_id   = module.network["mysql"].vpc_id
+      asn      = var.vpc_networks["mysql"].asn
+    }
+  }
+  gcp_project_settings = var.gcp_project_settings
+  advertised_ip_range  = module.mysql-with-bastion.instances_ip_range
 }
 
 # --------------------------------------------------------------
@@ -200,9 +203,9 @@ resource "helm_release" "prometheus_grafana" {
 }
 
 resource "helm_release" "uptime" {
-  name             = "monitoring2"
-  repository       = "https://helm.irsigler.cloud"
-  chart            = "uptime-kuma"
-  namespace        = "monitoring"
-  wait             = true
+  name       = "monitoring2"
+  repository = "https://helm.irsigler.cloud"
+  chart      = "uptime-kuma"
+  namespace  = "monitoring"
+  wait       = true
 }

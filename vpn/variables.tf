@@ -1,22 +1,22 @@
-variable "region" {
-  default     = "us-west1"
-  description = "LOL are you serious"
+variable "gcp_project_settings" {
+  type = object({
+    zone       = string
+    region     = string
+    project_id = string
+  })
+  default = {
+    zone       = "us-west1-c"
+    region     = "us-west1"
+    project_id = "my-beautiful-cluster2"
+  }
 }
 
-variable "mysql_vpc_id" {
-  type = string
-}
-
-variable "gke_vpc_id" {
-  type = string
-}
-
-variable "mysql_vpc_name" {
-  type = string
-}
-
-variable "gke_vpc_name" {
-  type = string
+variable "network" {
+  type = map(object({
+    vpc_name = string
+    vpc_id   = string
+    asn      = number
+  }))
 }
 
 variable "advertised_ip_range" {

@@ -1,22 +1,18 @@
-resource "google_compute_ha_vpn_gateway" "ha_gateway1" {
-  region  = var.region
-  name    = "ha-vpn-mysql"
-  network = var.gke_vpc_id
+resource "google_compute_ha_vpn_gateway" "ha_gateway" {
+  for_each = var.network
+  region   = var.gcp_project_settings.region
+  name     = "ha-vpn-${each.key}"
+  network  = each.value.vpc_id
 }
 
-resource "google_compute_ha_vpn_gateway" "ha_gateway2" {
-  region  = var.region
-  name    = "ha-vpn-gke"
-  network = var.mysql_vpc_id
-}
-
-resource "google_compute_router" "router1" {
-  name    = "ha-vpn-router-gke"
-  region  = var.region
-  network = var.gke_vpc_name
+resource "google_compute_router" "router" {
+  for_each = var.network
+  name     = "ha-vpn-router-${each.key}"
+  region   = var.gcp_project_settings.region
+  network  = each.value.vpc_name
   bgp {
     advertise_mode    = "CUSTOM"
-    asn               = 64514
+    asn               = each.value.asn
     advertised_groups = ["ALL_SUBNETS"]
     advertised_ip_ranges {
       range = var.advertised_ip_range
@@ -24,128 +20,64 @@ resource "google_compute_router" "router1" {
   }
 }
 
-resource "google_compute_router" "router2" {
-  name    = "ha-vpn-router-mysql"
-  region  = var.region
-  network = var.mysql_vpc_name
-  bgp {
-    advertise_mode    = "CUSTOM"
-    asn               = 64515
-    advertised_groups = ["ALL_SUBNETS"]
-    advertised_ip_ranges {
-      range = var.advertised_ip_range
-    }
-  }
-}
-
-resource "google_compute_vpn_tunnel" "tunnel1" {
-  name                  = "ha-vpn-tunnel1"
-  region                = var.region
-  vpn_gateway           = google_compute_ha_vpn_gateway.ha_gateway1.id
-  peer_gcp_gateway      = google_compute_ha_vpn_gateway.ha_gateway2.id
+resource "google_compute_vpn_tunnel" "gke_to_mysql_tunnel" {
+  count                 = 2
+  name                  = "ha-vpn-tunnel-gke-to-mysql-${count.index}"
+  region                = var.gcp_project_settings.region
+  vpn_gateway           = google_compute_ha_vpn_gateway.ha_gateway["gke"].id
+  peer_gcp_gateway      = google_compute_ha_vpn_gateway.ha_gateway["mysql"].id
   shared_secret         = "a secret message"
-  router                = google_compute_router.router1.id
-  vpn_gateway_interface = 0
+  router                = google_compute_router.router["gke"].id
+  vpn_gateway_interface = count.index
 }
 
-resource "google_compute_vpn_tunnel" "tunnel2" {
-  name                  = "ha-vpn-tunnel2"
-  region                = var.region
-  vpn_gateway           = google_compute_ha_vpn_gateway.ha_gateway1.id
-  peer_gcp_gateway      = google_compute_ha_vpn_gateway.ha_gateway2.id
+resource "google_compute_vpn_tunnel" "mysql_to_gke_tunnel" {
+  count                 = 2
+  name                  = "ha-vpn-tunnel-mysql-to-gke-${count.index}"
+  region                = var.gcp_project_settings.region
+  vpn_gateway           = google_compute_ha_vpn_gateway.ha_gateway["mysql"].id
+  peer_gcp_gateway      = google_compute_ha_vpn_gateway.ha_gateway["gke"].id
   shared_secret         = "a secret message"
-  router                = google_compute_router.router1.id
-  vpn_gateway_interface = 1
+  router                = google_compute_router.router["mysql"].id
+  vpn_gateway_interface = count.index
 }
 
-resource "google_compute_vpn_tunnel" "tunnel3" {
-  name                  = "ha-vpn-tunnel3"
-  region                = var.region
-  vpn_gateway           = google_compute_ha_vpn_gateway.ha_gateway2.id
-  peer_gcp_gateway      = google_compute_ha_vpn_gateway.ha_gateway1.id
-  shared_secret         = "a secret message"
-  router                = google_compute_router.router2.id
-  vpn_gateway_interface = 0
+resource "google_compute_router_interface" "gke_router_interface" {
+  count      = 2
+  name       = "gke-router-interface${count.index}"
+  router     = google_compute_router.router["gke"].name
+  region     = var.gcp_project_settings.region
+  ip_range   = "169.254.${count.index}.1/30"
+  vpn_tunnel = google_compute_vpn_tunnel.gke_to_mysql_tunnel[count.index].name
 }
 
-resource "google_compute_vpn_tunnel" "tunnel4" {
-  name                  = "ha-vpn-tunnel4"
-  region                = var.region
-  vpn_gateway           = google_compute_ha_vpn_gateway.ha_gateway2.id
-  peer_gcp_gateway      = google_compute_ha_vpn_gateway.ha_gateway1.id
-  shared_secret         = "a secret message"
-  router                = google_compute_router.router2.id
-  vpn_gateway_interface = 1
-}
-
-resource "google_compute_router_interface" "router1_interface1" {
-  name       = "router1-interface1"
-  router     = google_compute_router.router1.name
-  region     = var.region
-  ip_range   = "169.254.0.1/30"
-  vpn_tunnel = google_compute_vpn_tunnel.tunnel1.name
-}
-
-resource "google_compute_router_peer" "router1_peer1" {
-  name                      = "router1-peer1"
-  router                    = google_compute_router.router1.name
-  region                    = var.region
-  peer_ip_address           = "169.254.0.2"
-  peer_asn                  = 64515
+resource "google_compute_router_peer" "gke_router_peer" {
+  count                     = 2
+  name                      = "gke-router-peer${count.index}"
+  router                    = google_compute_router.router["gke"].name
+  region                    = var.gcp_project_settings.region
+  peer_ip_address           = "169.254.${count.index}.2"
+  peer_asn                  = var.network["mysql"].asn
   advertised_route_priority = 100
-  interface                 = google_compute_router_interface.router1_interface1.name
+  interface                 = google_compute_router_interface.gke_router_interface[count.index].name
 }
 
-resource "google_compute_router_interface" "router1_interface2" {
-  name       = "router1-interface2"
-  router     = google_compute_router.router1.name
-  region     = var.region
-  ip_range   = "169.254.1.2/30"
-  vpn_tunnel = google_compute_vpn_tunnel.tunnel2.name
+resource "google_compute_router_interface" "mysql_router_interface" {
+  count      = 2
+  name       = "mysql-router-interface${count.index}"
+  router     = google_compute_router.router["mysql"].name
+  region     = var.gcp_project_settings.region
+  ip_range   = "169.254.${count.index}.2/30"
+  vpn_tunnel = google_compute_vpn_tunnel.mysql_to_gke_tunnel[count.index].name
 }
 
-resource "google_compute_router_peer" "router1_peer2" {
-  name                      = "router1-peer2"
-  router                    = google_compute_router.router1.name
-  region                    = var.region
-  peer_ip_address           = "169.254.1.1"
-  peer_asn                  = 64515
+resource "google_compute_router_peer" "mysql_router_peer" {
+  count                     = 2
+  name                      = "mysql-router-peer${count.index}"
+  router                    = google_compute_router.router["mysql"].name
+  region                    = var.gcp_project_settings.region
+  peer_ip_address           = "169.254.${count.index}.1"
+  peer_asn                  = var.network["gke"].asn
   advertised_route_priority = 100
-  interface                 = google_compute_router_interface.router1_interface2.name
-}
-
-resource "google_compute_router_interface" "router2_interface1" {
-  name       = "router2-interface1"
-  router     = google_compute_router.router2.name
-  region     = var.region
-  ip_range   = "169.254.0.2/30"
-  vpn_tunnel = google_compute_vpn_tunnel.tunnel3.name
-}
-
-resource "google_compute_router_peer" "router2_peer1" {
-  name                      = "router2-peer1"
-  router                    = google_compute_router.router2.name
-  region                    = var.region
-  peer_ip_address           = "169.254.0.1"
-  peer_asn                  = 64514
-  advertised_route_priority = 100
-  interface                 = google_compute_router_interface.router2_interface1.name
-}
-
-resource "google_compute_router_interface" "router2_interface2" {
-  name       = "router2-interface2"
-  router     = google_compute_router.router2.name
-  region     = var.region
-  ip_range   = "169.254.1.1/30"
-  vpn_tunnel = google_compute_vpn_tunnel.tunnel4.name
-}
-
-resource "google_compute_router_peer" "router2_peer2" {
-  name                      = "router2-peer2"
-  router                    = google_compute_router.router2.name
-  region                    = var.region
-  peer_ip_address           = "169.254.1.2"
-  peer_asn                  = 64514
-  advertised_route_priority = 100
-  interface                 = google_compute_router_interface.router2_interface2.name
+  interface                 = google_compute_router_interface.mysql_router_interface[count.index].name
 }
