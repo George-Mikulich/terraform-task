@@ -109,103 +109,77 @@ provider "helm" {
   }
 }
 
-resource "helm_release" "argocd" {
-  name             = "argocd"
-  repository       = "https://argoproj.github.io/argo-helm"
-  chart            = "argo-cd"
-  namespace        = "argocd"
-  version          = "7.1.1"
-  create_namespace = true
-  wait             = true
+# Releases are grouped to enable dependencies
+
+resource "helm_release" "independent_releases" {
+  for_each = {
+    for release in var.helm_releases : release.release_name => release
+    # filtering releases
+    if release.dependency_level == 0 # that are marked as independent,
+    # i.e. dependency level equals to zero
+  }
+  create_namespace = each.value.create_namespace
+  wait             = each.value.wait
+
+  name       = each.value.release_name
+  repository = each.value.repo
+  chart      = each.value.chart
+  namespace  = each.value.namespace
+  version    = each.value.version
+  values     = [each.value.values_file_path]
+  dynamic "set" {
+    for_each = each.value.values
+    content {
+      name  = set.key
+      value = set.value
+    }
+  }
 }
 
-resource "helm_release" "nginx_ingress_controller" {
-  name             = "ingress-nginx"
-  repository       = "https://kubernetes.github.io/ingress-nginx"
-  chart            = "ingress-nginx"
-  namespace        = "ingress-nginx"
-  create_namespace = true
-  wait             = true
+resource "helm_release" "level1_releases" {
+  depends_on = [helm_release.independent_releases]
+  for_each = {
+    for release in var.helm_releases : release.release_name => release
+    if release.dependency_level == 1
+  }
+  create_namespace = each.value.create_namespace
+  wait             = each.value.wait
+
+  name       = each.value.release_name
+  repository = each.value.repo
+  chart      = each.value.chart
+  namespace  = each.value.namespace
+  version    = each.value.version
+  values     = [each.value.values_file_path]
+  dynamic "set" {
+    for_each = each.value.values
+    content {
+      name  = set.key
+      value = set.value
+    }
+  }
 }
 
-resource "helm_release" "external_secrets_preconfig" { #weakpoint
-  name             = "eso-preconfig"
-  chart            = "./secrets"
-  namespace        = "external-secrets"
-  create_namespace = true
-  wait             = true
-}
+resource "helm_release" "level2_releases" {
+  depends_on = [helm_release.level1_releases]
+  for_each = {
+    for release in var.helm_releases : release.release_name => release
+    if release.dependency_level == 2
+  }
+  create_namespace = each.value.create_namespace
+  wait             = each.value.wait
 
-resource "helm_release" "external_secrets" {
-  depends_on = [helm_release.external_secrets_preconfig]
-  name       = "eso"
-  repository = "https://charts.external-secrets.io"
-  chart      = "external-secrets"
-  namespace  = "external-secrets"
-  wait       = true
-}
-
-resource "helm_release" "cert_manager" {
-  name             = "cert-manager"
-  repository       = "https://charts.jetstack.io"
-  chart            = "cert-manager"
-  namespace        = "cert-manager"
-  version          = "v1.15.1"
-  create_namespace = true
-  wait             = true
-  values = [
-    file("./custom-helm-values/cert-manager.yaml")
-  ]
-}
-
-resource "helm_release" "dns_secret_key" {
-  depends_on       = [helm_release.external_secrets, helm_release.cert_manager]
-  name             = "external-secrets"
-  repository       = "https://github.com/George-Mikulich/terraform-task"
-  chart            = "helm-charts/eso"
-  namespace        = "wordpress"
-  create_namespace = true
-  wait             = true
-}
-
-resource "helm_release" "issuer_and_certificate" {
-  depends_on = [helm_release.dns_secret_key]
-  name       = "issuer-and-certificate"
-  repository = "https://github.com/George-Mikulich/terraform-task"
-  chart      = "helm-charts/cert"
-  namespace  = "ingress-nginx"
-  wait       = true
-}
-
-# resource "helm_release" "wordpress" {
-#   depends_on = [helm_release.dns_secret_key]
-#   name       = "wordpress-app"
-#   repository = "https://github.com/George-Mikulich/terraform-task"
-#   chart      = "helm-charts/wordpress"
-#   namespace  = "wordpress"
-#   set {
-#     name   = "host"
-#     value = module.mysql-with-bastion.instance_ip
-#   }
-#   set {
-#     name   = "database"
-#     value = module.mysql-with-bastion.db_name
-#   }
-# }
-
-resource "helm_release" "prometheus_grafana" {
-  name             = "monitoring1"
-  repository       = "https://prometheus-community.github.io/helm-charts"
-  chart            = "kube-prometheus-stack"
-  namespace        = "monitoring"
-  create_namespace = true
-  wait             = true
-}
-
-resource "helm_release" "uptime" {
-  name       = "monitoring2"
-  repository = "https://helm.irsigler.cloud"
-  chart      = "uptime-kuma"
-  namespace  = "monitoring"
-  wait       = true
+  name       = each.value.release_name
+  repository = each.value.repo
+  chart      = each.value.chart
+  namespace  = each.value.namespace
+  version    = each.value.version
+  values     = [each.value.values_file_path]
+  dynamic "set" {
+    for_each = each.value.values
+    content {
+      name  = set.key
+      value = set.value
+    }
+  }
 }

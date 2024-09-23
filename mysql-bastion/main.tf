@@ -13,12 +13,12 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 resource "google_sql_database" "database" {
-  name     = "mysql-db"
+  name     = var.db_config.db_name
   instance = google_sql_database_instance.instance.name
 }
 
 resource "google_sql_database_instance" "instance" {
-  name             = "mysql-db-instance"
+  name             = "${var.db_config.db_name}-instance"
   region           = var.gcp_project_settings.region
   database_version = var.db_config.db_version
 

@@ -52,10 +52,12 @@ variable "tcp_firewall_config" {
 
 variable "db_config" {
   type = object({
+    db_name             = string
     db_version          = string
     bastion_internal_ip = string
   })
   default = {
+    db_name             = "mysql-db"
     db_version          = "MYSQL_8_0"
     bastion_internal_ip = "10.2.0.10"
   }

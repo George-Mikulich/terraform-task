@@ -5,7 +5,3 @@ output "instances_ip_range" {
 output "instance_ip" {
   value = "change me"
 }
-
-output "db_name" {
-  value = google_sql_database.database.name
-}
