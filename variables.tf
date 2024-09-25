@@ -126,7 +126,6 @@ variable "helm_releases" {
     chart            = string
     namespace        = string
     version          = string
-    values_file_path = string
     values           = map(string)
   }))
   default = {
@@ -139,7 +138,6 @@ variable "helm_releases" {
       chart            = "argo-cd"
       namespace        = "argocd"
       version          = "7.1.1"
-      values_file_path = ""
       values           = {}
     }
     nginx = {
@@ -151,7 +149,6 @@ variable "helm_releases" {
       chart            = "ingress-nginx"
       namespace        = "ingress-nginx"
       version          = ""
-      values_file_path = ""
       values           = {}
     }
     prometheus_grafana = {
@@ -163,7 +160,6 @@ variable "helm_releases" {
       chart            = "kube-prometheus-stack"
       namespace        = "monitoring"
       version          = ""
-      values_file_path = ""
       values           = {}
     }
     uptime = {
@@ -175,7 +171,6 @@ variable "helm_releases" {
       chart            = "uptime-kuma"
       namespace        = "monitoring"
       version          = ""
-      values_file_path = ""
       values           = {}
     }
     external_secrets_preconfig = {
@@ -187,7 +182,6 @@ variable "helm_releases" {
       chart            = "./secrets"
       namespace        = "external-secrets"
       version          = ""
-      values_file_path = ""
       values           = {}
     }
     cert_manager = {
@@ -199,11 +193,24 @@ variable "helm_releases" {
       chart            = "cert-manager"
       namespace        = "cert-manager"
       version          = "v1.15.1"
-      values_file_path = "./custom-helm-values/cert-manager.yaml"
+      values = {
+        "crds.enabled" = true
+        "crds.keep"    = false
+      }
+    }
+    external_secrets = {
+      dependency_level = 1
+      create_namespace = false
+      wait             = true
+      release_name     = "eso"
+      repo             = "https://charts.external-secrets.io"
+      chart            = "external-secrets"
+      namespace        = "external-secrets"
+      version          = ""
       values           = {}
     }
     dns_secret_key = {
-      dependency_level = 1
+      dependency_level = 2
       create_namespace = true
       wait             = true
       release_name     = "external-secrets"
@@ -211,11 +218,10 @@ variable "helm_releases" {
       chart            = "helm-charts/eso"
       namespace        = "wordpress"
       version          = ""
-      values_file_path = ""
       values           = {}
     }
     issuer_and_certificate = {
-      dependency_level = 2
+      dependency_level = 3
       create_namespace = false
       wait             = true
       release_name     = "issuer-and-certificate"
@@ -223,21 +229,19 @@ variable "helm_releases" {
       chart            = "helm-charts/cert"
       namespace        = "ingress-nginx"
       version          = ""
-      values_file_path = ""
       values           = {}
     }
     wordpress = {
-      dependency_level = 2
+      dependency_level = 3
       create_namespace = false
       wait             = true
       release_name     = "wordpress-app"
       repo             = "https://github.com/George-Mikulich/terraform-task"
       chart            = "helm-charts/wordpress"
       namespace        = "wordpress"
-      version          = ""
-      values_file_path = ""
+      version          = "0.0.0"
       values = {
-        host     = "*.*.*.*"
+        host     = "10.121.104.3"
         database = "mysql-db"
       }
     }
@@ -251,7 +255,6 @@ variable "helm_releases" {
       chart            = ""
       namespace        = ""
       version          = ""
-      values_file_path = ""
       values           = {}
     }
   }

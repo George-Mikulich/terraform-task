@@ -2,7 +2,7 @@ resource "google_compute_global_address" "private_ip_address" {
   name          = "private-ip-address"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
-  prefix_length = 16
+  prefix_length = 22
   network       = var.network.vpc_selflink
 }
 
@@ -10,6 +10,8 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = var.network.vpc_selflink
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+  # export_custom_routes = true !!!
+  # you need to do this manually, TF does not provide such argument for this resource
 }
 
 resource "google_sql_database" "database" {
@@ -38,7 +40,7 @@ resource "google_sql_database_instance" "instance" {
 resource "google_sql_user" "users" {
   name     = var.db_creds.user
   instance = google_sql_database_instance.instance.name
-  host     = var.db_config.bastion_internal_ip
+  host     = "%"
   password = var.db_creds.password
 }
 
@@ -72,7 +74,7 @@ EOT
 
 resource "google_compute_firewall" "firewall_rules" {
   for_each = var.tcp_firewall_config
-  name     = "allow-${each.key}"
+  name     = "allow-${each.key}-mysql"
   network  = var.network.vpc_name
   allow {
     protocol = "tcp"

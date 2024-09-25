@@ -89,7 +89,7 @@ EOT
 
 resource "google_compute_firewall" "firewall_rules" {
   for_each = var.tcp_firewall_config
-  name     = "allow-${each.key}"
+  name     = "allow-${each.key}-gke"
   network  = var.network.vpc_name
   allow {
     protocol = "tcp"

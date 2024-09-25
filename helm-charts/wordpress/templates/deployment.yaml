@@ -18,17 +18,17 @@ spec:
         version: v1
     spec:
       containers:
-      - image: wordpress:cli-php8.3
+      - image: wordpress
         name: wordpress-app
         ports:
         - containerPort: 80
         env:
-        - name: MYSQL_USER
+        - name: WORDPRESS_DB_USER
           valueFrom:
             secretKeyRef:
               key: MYSQL_USER
               name: db-creds
-        - name: MYSQL_PASSWORD
+        - name: WORDPRESS_DB_PASSWORD
           valueFrom:
             secretKeyRef:
               key: MYSQL_PASSWORD
