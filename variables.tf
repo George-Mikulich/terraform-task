@@ -259,3 +259,28 @@ variable "helm_releases" {
     }
   }
 }
+
+variable "dns_config" {
+  type = object({
+    managed_zone_dns_name             = string
+    managed_zone_google_resource_name = string
+    a_record_settings = map(object({
+      dns_name = string
+      type     = string
+      ttl      = number
+      rrdatas  = list(string)
+    }))
+  })
+  default = {
+    managed_zone_dns_name             = "app-george.com."
+    managed_zone_google_resource_name = "managed-zone-app-george"
+    a_record_settings = {
+      "my" = {
+        dns_name = "my"
+        type     = "A"
+        ttl      = 300
+        rrdatas  = ["?.?.?.?"] #unknown by now
+      }
+    }
+  }
+}
