@@ -14,3 +14,7 @@ appLabel: "flask-app"
 service:
   type: ClusterIP
   port: 5000
+
+dbConfig:
+  host: ""
+  database: ""

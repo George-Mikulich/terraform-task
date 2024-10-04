@@ -247,6 +247,20 @@ variable "helm_releases" {
         database = "mysql-db"
       }
     }
+    flask = {
+      dependency_level = 3
+      create_namespace = false
+      wait             = true
+      release_name     = "flask-app"
+      repo             = "https://github.com/George-Mikulich/terraform-task"
+      chart            = "helm-charts/flask"
+      namespace        = "wordpress"
+      version          = "0.0.0"
+      values = {
+        "dbConfig.host"     = "10.5.236.3"
+        "dbConfig.database" = "mysql-db"
+      }
+    }
 
     empty = {
       dependency_level = 1000
