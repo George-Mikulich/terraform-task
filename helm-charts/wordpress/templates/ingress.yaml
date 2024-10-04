@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wordpress-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wordpress-app
+            port:
+              number: 80
+      # - path: /flask
+      #   pathType: Prefix
+      #   backend:
+      #     service:
+      #       name: aks-helloworld-two
+      #       port:
+      #         number: 80

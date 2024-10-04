@@ -149,7 +149,9 @@ variable "helm_releases" {
       chart            = "ingress-nginx"
       namespace        = "ingress-nginx"
       version          = ""
-      values           = {}
+      values = {
+        "controller.extraArgs.default-ssl-certificate" = "ingress-nginx/app-george-tls"
+      }
     }
     prometheus_grafana = {
       dependency_level = 0
@@ -158,17 +160,6 @@ variable "helm_releases" {
       release_name     = "monitoring1"
       repo             = "https://prometheus-community.github.io/helm-charts"
       chart            = "kube-prometheus-stack"
-      namespace        = "monitoring"
-      version          = ""
-      values           = {}
-    }
-    uptime = {
-      dependency_level = 0
-      create_namespace = false
-      wait             = true
-      release_name     = "monitoring2"
-      repo             = "https://helm.irsigler.cloud"
-      chart            = "uptime-kuma"
       namespace        = "monitoring"
       version          = ""
       values           = {}
@@ -197,6 +188,17 @@ variable "helm_releases" {
         "crds.enabled" = true
         "crds.keep"    = false
       }
+    }
+    uptime = {
+      dependency_level = 1
+      create_namespace = false
+      wait             = true
+      release_name     = "monitoring2"
+      repo             = "https://helm.irsigler.cloud"
+      chart            = "uptime-kuma"
+      namespace        = "monitoring"
+      version          = ""
+      values           = {}
     }
     external_secrets = {
       dependency_level = 1
@@ -241,7 +243,7 @@ variable "helm_releases" {
       namespace        = "wordpress"
       version          = "0.0.0"
       values = {
-        host     = "10.121.104.3"
+        host     = "10.5.236.3"
         database = "mysql-db"
       }
     }

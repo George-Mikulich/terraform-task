@@ -116,5 +116,5 @@ module "helm_releases" {
 
 module "dns" {
   source = "./dns"
-
+  dns_config = var.dns_config
 }

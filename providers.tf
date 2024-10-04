@@ -18,3 +18,9 @@ provider "google" {
   project = var.gcp_project_settings.project_id
   region  = var.gcp_project_settings.region
 }
+
+provider "kubernetes" {
+ host                   = "http://${module.private-gke-cluster.bastion_endpoint}:443"
+ client_key             = base64decode(module.private-gke-cluster.key)
+ cluster_ca_certificate = base64decode(module.private-gke-cluster.ca_cert)
+}
