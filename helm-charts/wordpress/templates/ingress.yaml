@@ -8,14 +8,14 @@ spec:
   - http:
       paths:
       - path: /wordpress
-        pathType: Prefix
+        pathType: Exact
         backend:
           service:
             name: wordpress-app
             port:
               number: 80
       - path: /flask
-        pathType: Prefix
+        pathType: Exact
         backend:
           service:
             name: flask-app
