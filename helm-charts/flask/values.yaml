@@ -1,0 +1,16 @@
+replicaCount: 1
+
+image:
+  registry: quay.io
+  username: george-mikulich
+  repo: flask-app
+  tag1: "1.0"
+  tag2: "2.0"
+
+containerPort: 5000
+
+appLabel: "flask-app"
+
+service:
+  type: ClusterIP
+  port: 5000
