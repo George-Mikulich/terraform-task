@@ -14,6 +14,15 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   # you need to do this manually, TF does not provide such argument for this resource
 }
 
+# trying to solve this ^^^ problem
+resource "google_compute_network_peering_routes_config" "peering_primary_routes" {
+  peering = google_service_networking_connection.private_vpc_connection
+  network = var.network.vpc_selflink
+
+  import_custom_routes = true
+  export_custom_routes = true
+}
+
 resource "google_sql_database" "database" {
   name     = var.db_config.db_name
   instance = google_sql_database_instance.instance.name

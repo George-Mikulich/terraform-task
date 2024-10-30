@@ -80,7 +80,7 @@ variable "tcp_firewall_config" {
       source_tags = ["gke-bastion-host"]
       source_ranges = {
         office_IP = "134.17.27.135/32"
-        home_IP   = "178.125.239.2/32"
+        home_IP   = "178.125.102.105/32"
         bsu_IP    = "217.21.43.190/32"
       }
     }
